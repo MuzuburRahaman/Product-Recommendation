@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Based Product Recommendation System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #050810;
+            --bg-surface: rgba(255,255,255,0.04);
+            --bg-card: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.09);
+            --border-glow: rgba(99,179,237,0.35);
+            --accent-1: #63b3ed;
+            --accent-2: #9f7aea;
+            --accent-3: #68d391;
+            --accent-hot: #fc8181;
+            --text-primary: #f0f4ff;
+            --text-secondary: #8899bb;
+            --text-muted: #4a5578;
+            --glow-blue: rgba(99,179,237,0.15);
+            --glow-purple: rgba(159,122,234,0.12);
+            --glow-green: rgba(104,211,145,0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-deep);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px 60px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Aurora background blobs */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -30%;
+            left: -20%;
+            width: 70vw;
+            height: 70vw;
+            background: radial-gradient(ellipse, rgba(99,179,237,0.08) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            animation: drift1 18s ease-in-out infinite alternate;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -20%;
+            right: -15%;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(ellipse, rgba(159,122,234,0.1) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            animation: drift2 22s ease-in-out infinite alternate;
+        }
+
+        .aurora-mid {
+            position: fixed;
+            top: 40%;
+            left: 40%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(ellipse, rgba(104,211,145,0.06) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            animation: drift3 28s ease-in-out infinite alternate;
+        }
+
+        @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(80px,60px) scale(1.15); } }
+        @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-60px,-80px) scale(1.1); } }
+        @keyframes drift3 { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,-40px) scale(1.2); } }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 720px;
+            animation: fadeUp 0.6s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99,179,237,0.1);
+            border: 1px solid rgba(99,179,237,0.25);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-size: 0.72em;
+            font-weight: 500;
+            color: var(--accent-1);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent-1);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-1);
+            animation: pulse 2s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.8em, 4vw, 2.6em);
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+
+        h1 span {
+            background: linear-gradient(120deg, var(--accent-1), var(--accent-2), var(--accent-3));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            color: var(--text-secondary);
+            font-size: 0.95em;
+            font-weight: 300;
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 24px 60px rgba(0,0,0,0.4);
+            margin-bottom: 20px;
+        }
+
+        /* Form */
+        .form-label {
+            display: block;
+            font-size: 0.82em;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .input-wrap {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1.1em;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 14px 14px 46px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95em;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        input[type="text"]::placeholder { color: var(--text-muted); }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-1);
+            background: rgba(99,179,237,0.06);
+            box-shadow: 0 0 0 3px rgba(99,179,237,0.12);
+        }
+
+        input[type="text"]:focus + .input-icon { color: var(--accent-1); }
+        /* Re-order for sibling selector */
+        .input-wrap input:focus ~ .input-icon { color: var(--accent-1); }
+
+        .sample-ids {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .sample-label {
+            font-size: 0.76em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 500;
+        }
+
+        .chip {
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.78em;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .chip:hover {
+            background: rgba(99,179,237,0.1);
+            border-color: rgba(99,179,237,0.4);
+            color: var(--accent-1);
+            transform: translateY(-1px);
+        }
+
+        .btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Syne', sans-serif;
+            font-size: 1em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn:hover::before { opacity: 1; }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(99,179,237,0.35);
+        }
+
+        .btn:active { transform: translateY(0); }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .error-text {
+            display: none;
+            font-size: 0.8em;
+            color: var(--accent-hot);
+            margin-top: 6px;
+        }
+        .error-text.show { display: block; }
+        input.error { border-color: var(--accent-hot) !important; box-shadow: 0 0 0 3px rgba(252,129,129,0.1) !important; }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 36px 0;
+        }
+        .loading.show { display: block; }
+
+        .loader-ring {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+        }
+        .loader-ring::before, .loader-ring::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+        }
+        .loader-ring::before {
+            inset: 0;
+            border: 2px solid rgba(255,255,255,0.06);
+        }
+        .loader-ring::after {
+            inset: 0;
+            border: 2px solid transparent;
+            border-top-color: var(--accent-1);
+            border-right-color: var(--accent-2);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading p {
+            color: var(--text-secondary);
+            font-size: 0.88em;
+        }
+
+        /* Results */
+        .result-section {
+            display: none;
+            animation: fadeUp 0.4s ease both;
+        }
+        .result-section.show { display: block; }
+
+        .result-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .result-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1em;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.02em;
+        }
+
+        .result-count-badge {
+            background: rgba(104,211,145,0.12);
+            border: 1px solid rgba(104,211,145,0.25);
+            color: var(--accent-3);
+            font-size: 0.75em;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 100px;
+        }
+
+        .rec-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 10px;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            animation: fadeUp 0.35s ease both;
+        }
+
+        .rec-item:nth-child(1) { animation-delay: 0.05s; }
+        .rec-item:nth-child(2) { animation-delay: 0.1s; }
+        .rec-item:nth-child(3) { animation-delay: 0.15s; }
+        .rec-item:nth-child(4) { animation-delay: 0.2s; }
+        .rec-item:nth-child(5) { animation-delay: 0.25s; }
+
+        .rec-item::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+            border-radius: 0 2px 2px 0;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .rec-item:hover {
+            background: rgba(99,179,237,0.06);
+            border-color: rgba(99,179,237,0.2);
+            transform: translateX(4px);
+        }
+
+        .rec-item:hover::before { opacity: 1; }
+
+        .rank-num {
+            font-family: 'Syne', sans-serif;
+            font-size: 0.72em;
+            font-weight: 800;
+            color: var(--accent-1);
+            background: rgba(99,179,237,0.1);
+            border: 1px solid rgba(99,179,237,0.2);
+            border-radius: 8px;
+            min-width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            letter-spacing: 0.04em;
+        }
+
+        .rec-info { flex: 1; min-width: 0; }
+
+        .rec-name {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.45;
+            margin-bottom: 4px;
+        }
+
+        .rec-scores {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .score-pill {
+            font-size: 0.72em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .score-pill span {
+            color: var(--accent-3);
+            font-weight: 500;
+        }
+
+        .error-card {
+            background: rgba(252,129,129,0.06);
+            border: 1px solid rgba(252,129,129,0.2);
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent-hot);
+            font-size: 0.88em;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 24px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="aurora-mid"></div>
+    <div class="container">
+
+        <div class="header">
+            <h1>Product <span>Recommendations</span></h1>
+            <p class="subtitle">Sentiment-driven suggestions tailored to users</p>
+        </div>
+
+        <div class="card">
+            <label class="form-label" for="userId">User Identifier</label>
+            <div class="input-wrap">
+                <input type="text" id="userId" placeholder="Enter user ID (e.g. adam)" autocomplete="off">
+                <span class="input-icon">⌘</span>
+            </div>
+            <div class="error-text" id="errorMessage">Please enter a valid user ID before continuing.</div>
+
+            <div class="sample-ids">
+                <span class="sample-label">Try:</span>
+                <span class="chip" onclick="setUser('adam')">adam</span>
+                <span class="chip" onclick="setUser('abbey')">abbey</span>
+                <span class="chip" onclick="setUser('aimee')">aimee</span>
+                <span class="chip" onclick="setUser('alex')">alex</span>
+            </div>
+
+            <button class="btn" id="submitBtn" onclick="fetchRecommendations()">
+                Get Recommendations →
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="loader-ring"></div>
+                <p>Analyzing sentiment signals…</p>
+            </div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="card" style="padding: 28px 32px;">
+                <div class="result-meta">
+                    <div class="result-title">Recommended for You</div>
+                    <div class="result-count-badge" id="resultCount"></div>
+                </div>
+                <div id="resultDisplay"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = 'https://sentiment-based-product-recommendation-diwc.onrender.com/recommendations';
+
+        function setUser(name) {
+            document.getElementById('userId').value = name;
+            document.getElementById('userId').focus();
+            document.getElementById('errorMessage').classList.remove('show');
+            document.getElementById('userId').classList.remove('error');
+        }
+
+        async function fetchRecommendations() {
+            const userIdEl = document.getElementById('userId');
+            const userId = userIdEl.value.trim();
+            const errorEl = document.getElementById('errorMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('resultSection');
+
+            if (!userId) {
+                userIdEl.classList.add('error');
+                errorEl.classList.add('show');
+                return;
+            }
+
+            userIdEl.classList.remove('error');
+            errorEl.classList.remove('show');
+            resultSection.classList.remove('show');
+            loading.classList.add('show');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/${userId}`);
+                const data = await response.json();
+
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+
+                if (!response.ok) throw new Error(data.error || 'Failed to fetch recommendations');
+
+                displayResults(data);
+
+            } catch (err) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+
+                document.getElementById('resultCount').textContent = '';
+                document.getElementById('resultDisplay').innerHTML = `
+                    <div class="error-card">
+                        <span>⚠</span>
+                        <span>${err.message}</span>
+                    </div>`;
+                resultSection.classList.add('show');
+            }
+        }
+
+        function displayResults(data) {
+            const resultSection = document.getElementById('resultSection');
+            const resultDisplay = document.getElementById('resultDisplay');
+            const resultCount = document.getElementById('resultCount');
+
+            const total = data.total_recommendations || 0;
+            resultCount.textContent = `${total} result${total !== 1 ? 's' : ''}`;
+
+            if (!data.recommendations || data.recommendations.length === 0) {
+                resultDisplay.innerHTML = `<div class="error-card"><span>ℹ</span><span>No recommendations found for this user.</span></div>`;
+            } else {
+                const rankColors = ['#63b3ed','#9f7aea','#68d391','#f6ad55','#fc8181'];
+                let html = '';
+                data.recommendations.forEach((rec, i) => {
+                    const color = rankColors[i] || '#63b3ed';
+                    html += `
+                        <div class="rec-item">
+                            <div class="rank-num" style="color:${color}; background: ${color}1a; border-color: ${color}33;">#${rec.rank || i+1}</div>
+                            <div class="rec-info">
+                                <div class="rec-name">${rec.product_name || 'Unknown Product'}</div>
+                                <div class="rec-scores">
+                                    ${rec.predicted_rating ? `<div class="score-pill">Rating <span>${rec.predicted_rating.toFixed(2)}</span></div>` : ''}
+                                    ${rec.hybrid_score ? `<div class="score-pill">Score <span>${rec.hybrid_score.toFixed(3)}</span></div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                resultDisplay.innerHTML = html;
+            }
+
+            resultSection.classList.add('show');
+        }
+
+        document.getElementById('userId').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') fetchRecommendations();
+        });
+
+        document.getElementById('userId').addEventListener('input', () => {
+            if (document.getElementById('userId').value.trim()) {
+                document.getElementById('userId').classList.remove('error');
+                document.getElementById('errorMessage').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
