@@ -1,6 +1,6 @@
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
-import model
+import deployment.model as model
 import os
 import traceback
 
@@ -10,7 +10,7 @@ CORS(app)
 @app.route('/')
 def index():
     """Serve the HTML page"""
-    return send_from_directory('.', 'index.html')
+    return render_template('index.html')
 
 @app.route('/health', methods=['GET'])
 def health():
